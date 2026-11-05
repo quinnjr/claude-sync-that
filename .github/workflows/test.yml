@@ -1,0 +1,23 @@
+name: test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck
+        run: shellcheck install.sh plugins/thatpet-wsl/scripts/forward.sh tests/*.sh
+      - name: Validate JSON
+        run: |
+          for f in .claude-plugin/marketplace.json plugins/thatpet-wsl/.claude-plugin/plugin.json plugins/thatpet-wsl/hooks/hooks.json; do
+            python3 -m json.tool "$f" > /dev/null
+          done
+      - name: Forwarder tests
+        run: bash tests/forward.test.sh
+      - name: Installer tests
+        run: bash tests/install.test.sh

@@ -11,7 +11,9 @@
     {
       "name": "thatpet-wsl",
       "source": "./plugins/thatpet-wsl",
-      "description": "Lets ThatPet on the Windows host react to Claude Code sessions running in WSL."
+      "description": "Lets ThatPet on the Windows host react to Claude Code sessions running in WSL.",
+      "license": "MIT",
+      "homepage": "https://github.com/quinnjr/claude-sync-that"
     }
   ]
 }
