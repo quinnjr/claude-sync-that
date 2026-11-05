@@ -1,0 +1,6 @@
+{
+  "name": "thatpet-wsl",
+  "version": "0.1.0",
+  "description": "Forwards Claude Code hook events from WSL to ThatPet (thatpet.exe) on the Windows host.",
+  "author": { "name": "Joseph Quinn", "email": "quinn.josephr@gmail.com" }
+}
