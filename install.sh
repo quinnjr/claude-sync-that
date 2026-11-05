@@ -173,7 +173,7 @@ check_thatpet() {
     warn "can't reach Windows from here (is WSL interop on?). The pet won't hear from WSL until it is."
     return 0
   fi
-  local_app_data=$(cd / && timeout 3 "$cmd" /d /c 'echo %LOCALAPPDATA%' 2>/dev/null | tr -d '\r\n' || true)
+  local_app_data=$( (cd / && timeout 3 "$cmd" /d /c 'echo %LOCALAPPDATA%' 2>/dev/null) | tr -d '\r\n') || true
   exe="$(wslpath -u "$local_app_data" 2>/dev/null || true)/Programs/ThatPet/thatpet.exe"
   if [ -z "$local_app_data" ] || [ ! -f "$exe" ]; then
     warn "ThatPet wasn't found under %LOCALAPPDATA%\\Programs\\ThatPet. Install it from https://thatpet.app, or set THATPET_EXE."

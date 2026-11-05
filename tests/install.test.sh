@@ -115,6 +115,15 @@ if [ "$code" -eq 0 ] && has_call "[$tmp/piped] plugin install thatpet-wsl@claude
 bash -s -- --help < "$installer" > "$tmp/out" 2>&1
 if grep -q -- "--config-dir DIR" "$tmp/out"; then pass "--help works when piped"; else fail "piped help: $(cat "$tmp/out")"; fi
 
+# 8. A failing cmd.exe only warns about ThatPet; the install still succeeds.
+mkdir -p "$tmp/badbin"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$tmp/badbin/cmd.exe"
+chmod +x "$tmp/badbin/cmd.exe"
+CALLS="$tmp/calls" CLAUDE_BIN="$fake" HOME="$tmp/home" PATH="$tmp/badbin:$PATH" \
+  env -u THATPET_EXE "$installer" --config-dir "$tmp/bad" >"$tmp/out" 2>&1
+code=$?
+if [ "$code" -eq 0 ] && grep -q "warning" "$tmp/out"; then pass "failing cmd.exe only warns"; else fail "failing cmd.exe: code=$code $(cat "$tmp/out")"; fi
+
 if [ "$failures" -eq 0 ]; then
   echo "all tests passed"
   exit 0
