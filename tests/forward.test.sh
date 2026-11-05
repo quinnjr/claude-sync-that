@@ -45,25 +45,31 @@ out=$(printf '%s' "$payload" | env -u THATPET_EXE XDG_CACHE_HOME="$tmp/empty" TH
 code=$?
 if [ "$code" -eq 0 ] && [ -z "$out" ]; then pass "no Windows interop exits 0 silently"; else fail "no interop: code=$code out=$out"; fi
 
-# 4. Discovery: a stand-in cmd.exe reports %LOCALAPPDATA%; the exe under it is found and cached.
-appdata="$tmp/appdata"
-mkdir -p "$appdata/Programs/ThatPet"
-cp "$fake" "$appdata/Programs/ThatPet/thatpet.exe"
-unc='\\wsl.localhost\'"${WSL_DISTRO_NAME:-Ubuntu}$(printf '%s' "$appdata" | tr '/' '\\')"
-fakecmd="$tmp/cmd.exe"
-printf '#!/usr/bin/env bash\nprintf "%%s\\r\\n" %q\n' "$unc" > "$fakecmd"
-chmod +x "$fakecmd"
-rm -f "$tmp/args"
-printf '%s' "$payload" | env -u THATPET_EXE XDG_CACHE_HOME="$tmp/disc" THATPET_CMD_EXE="$fakecmd" "$forward"
-if [ -f "$tmp/args" ]; then pass "discovers thatpet.exe under %LOCALAPPDATA%"; else fail "discovery did not find the exe"; fi
-if [ "$(cat "$tmp/disc/thatpet-wsl/exe-path" 2>/dev/null)" = "$appdata/Programs/ThatPet/thatpet.exe" ]; then pass "caches the discovered path"; else fail "cache was: $(cat "$tmp/disc/thatpet-wsl/exe-path" 2>/dev/null)"; fi
+if ! command -v wslpath >/dev/null 2>&1; then
+  echo "skip - discovery tests (wslpath only exists inside WSL)"
+else
+  # 4. Discovery: a stand-in cmd.exe reports %LOCALAPPDATA%; the exe under it is found and cached.
+  appdata="$tmp/appdata"
+  mkdir -p "$appdata/Programs/ThatPet"
+  cp "$fake" "$appdata/Programs/ThatPet/thatpet.exe"
+  # shellcheck disable=SC1003 # backslashes are literal Windows path separators
+  unc='\\wsl.localhost\'"${WSL_DISTRO_NAME:-Ubuntu}$(printf '%s' "$appdata" | tr '/' '\\')"
+  fakecmd="$tmp/cmd.exe"
+  printf '#!/usr/bin/env bash\nprintf "%%s\\r\\n" %q\n' "$unc" > "$fakecmd"
+  chmod +x "$fakecmd"
+  rm -f "$tmp/args"
+  printf '%s' "$payload" | env -u THATPET_EXE XDG_CACHE_HOME="$tmp/disc" THATPET_CMD_EXE="$fakecmd" "$forward"
+  if [ -f "$tmp/args" ]; then pass "discovers thatpet.exe under %LOCALAPPDATA%"; else fail "discovery did not find the exe"; fi
+  if [ "$(cat "$tmp/disc/thatpet-wsl/exe-path" 2>/dev/null)" = "$appdata/Programs/ThatPet/thatpet.exe" ]; then pass "caches the discovered path"; else fail "cache was: $(cat "$tmp/disc/thatpet-wsl/exe-path" 2>/dev/null)"; fi
 
-# 5. A stale cache entry falls back to discovery.
-printf '%s' "$tmp/gone.exe" > "$tmp/disc/thatpet-wsl/exe-path"
-rm -f "$tmp/args"
-printf '%s' "$payload" | env -u THATPET_EXE XDG_CACHE_HOME="$tmp/disc" THATPET_CMD_EXE="$fakecmd" "$forward"
-code=$?
-if [ "$code" -eq 0 ] && [ -f "$tmp/args" ]; then pass "stale cache falls back to discovery"; else fail "stale cache: code=$code"; fi
+  # 5. A stale cache entry falls back to discovery.
+  printf '%s' "$tmp/gone.exe" > "$tmp/disc/thatpet-wsl/exe-path"
+  rm -f "$tmp/args"
+  printf '%s' "$payload" | env -u THATPET_EXE XDG_CACHE_HOME="$tmp/disc" THATPET_CMD_EXE="$fakecmd" "$forward"
+  code=$?
+  if [ "$code" -eq 0 ] && [ -f "$tmp/args" ]; then pass "stale cache falls back to discovery"; else fail "stale cache: code=$code"; fi
+
+fi
 
 if [ "$failures" -eq 0 ]; then
   echo "all tests passed"
