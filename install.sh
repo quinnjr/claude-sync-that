@@ -34,35 +34,6 @@ Options:
 EOF
 }
 
-config_dirs=()
-uninstall=0
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --config-dir)
-      if [ $# -lt 2 ]; then
-        die "--config-dir needs a directory"
-      fi
-      config_dirs+=("$2")
-      shift 2
-      ;;
-    --config-dir=*)
-      config_dirs+=("${1#--config-dir=}")
-      shift
-      ;;
-    --uninstall)
-      uninstall=1
-      shift
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      die "unknown option: $1 (try --help)"
-      ;;
-  esac
-done
-
 find_claude() {
   if [ -n "${CLAUDE_BIN:-}" ]; then
     echo "$CLAUDE_BIN"
@@ -82,20 +53,14 @@ find_claude() {
   return 1
 }
 
-claude_bin=$(find_claude) || die "Claude Code (claude) was not found. Install it first: https://claude.com/claude-code"
-
-if [ -z "${WSL_DISTRO_NAME:-}" ] && ! grep -qi microsoft /proc/version 2>/dev/null; then
-  warn "this doesn't look like WSL. The plugin only does something when Claude Code runs inside WSL."
-fi
-
 # Runs claude with CLAUDE_CONFIG_DIR set to $1 (empty = leave the environment alone).
 run_claude() {
   local dir="$1"
   shift
   if [ -n "$dir" ]; then
-    CLAUDE_CONFIG_DIR="$dir" "$claude_bin" "$@"
+    CLAUDE_CONFIG_DIR="$dir" "$claude_bin" "$@" </dev/null
   else
-    "$claude_bin" "$@"
+    "$claude_bin" "$@" </dev/null
   fi
 }
 
@@ -182,18 +147,59 @@ check_thatpet() {
   say "Found ThatPet at ${exe}"
 }
 
-if [ ${#config_dirs[@]} -eq 0 ]; then
-  config_dirs=("")
-fi
+# Everything runs from main, so a partial download (curl | bash cut off mid-stream)
+# runs nothing, and no command can read the rest of the script from stdin.
+main() {
+  config_dirs=()
+  uninstall=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --config-dir)
+        if [ $# -lt 2 ]; then
+          die "--config-dir needs a directory"
+        fi
+        config_dirs+=("$2")
+        shift 2
+        ;;
+      --config-dir=*)
+        config_dirs+=("${1#--config-dir=}")
+        shift
+        ;;
+      --uninstall)
+        uninstall=1
+        shift
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        die "unknown option: $1 (try --help)"
+        ;;
+    esac
+  done
 
-for dir in "${config_dirs[@]}"; do
-  if [ "$uninstall" -eq 1 ]; then
-    uninstall_from "$dir"
-  else
-    install_into "$dir"
+  claude_bin=$(find_claude) || die "Claude Code (claude) was not found. Install it first: https://claude.com/claude-code"
+
+  if [ -z "${WSL_DISTRO_NAME:-}" ] && ! grep -qi microsoft /proc/version 2>/dev/null; then
+    warn "this doesn't look like WSL. The plugin only does something when Claude Code runs inside WSL."
   fi
-done
 
-if [ "$uninstall" -eq 0 ]; then
-  check_thatpet
-fi
+  if [ ${#config_dirs[@]} -eq 0 ]; then
+    config_dirs=("")
+  fi
+
+  for dir in "${config_dirs[@]}"; do
+    if [ "$uninstall" -eq 1 ]; then
+      uninstall_from "$dir"
+    else
+      install_into "$dir"
+    fi
+  done
+
+  if [ "$uninstall" -eq 0 ]; then
+    check_thatpet
+  fi
+}
+
+main "$@"
