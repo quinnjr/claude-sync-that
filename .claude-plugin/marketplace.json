@@ -1,0 +1,19 @@
+{
+  "name": "claude-sync-that",
+  "owner": {
+    "name": "Joseph Quinn",
+    "email": "quinn.josephr@gmail.com"
+  },
+  "metadata": {
+    "description": "Bridges Claude Code running in WSL to ThatPet on the Windows host."
+  },
+  "plugins": [
+    {
+      "name": "thatpet-wsl",
+      "source": "./plugins/thatpet-wsl",
+      "description": "Lets ThatPet on the Windows host react to Claude Code sessions running in WSL.",
+      "license": "MIT",
+      "homepage": "https://github.com/quinnjr/claude-sync-that"
+    }
+  ]
+}
