@@ -18,6 +18,8 @@ cat > "$fake" <<'EOF'
 dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 mkdir -p "$dir"
 echo "[$dir] $*" >> "$CALLS"
+# The real claude reads stdin; under curl | bash that would be the rest of the script.
+cat >> "${STDIN_LOG:-/dev/null}"
 case "$*" in
   "plugin marketplace list --json")
     if [ -f "$dir/marketplace" ]; then
@@ -107,11 +109,18 @@ run --bogus
 code=$?
 if [ "$code" -ne 0 ] && grep -q "unknown option" "$tmp/out"; then pass "rejects unknown options"; else fail "unknown option: code=$code"; fi
 
-# 7. Works when piped into bash (curl | bash style).
+# 7. Works when piped into bash (curl | bash style), and claude never eats the script from stdin.
 : > "$tmp/calls"
-CALLS="$tmp/calls" CLAUDE_BIN="$fake" THATPET_EXE="$fakeexe" HOME="$tmp/home" bash -s -- --config-dir "$tmp/piped" < "$installer" >"$tmp/out" 2>&1
+: > "$tmp/stdin-log"
+STDIN_LOG="$tmp/stdin-log" CALLS="$tmp/calls" CLAUDE_BIN="$fake" THATPET_EXE="$fakeexe" HOME="$tmp/home" \
+  bash -s -- --config-dir "$tmp/piped1" --config-dir "$tmp/piped2" < "$installer" >"$tmp/out" 2>&1
 code=$?
-if [ "$code" -eq 0 ] && has_call "[$tmp/piped] plugin install thatpet-wsl@claude-sync-that"; then pass "works piped into bash"; else fail "piped: code=$code $(cat "$tmp/out")"; fi
+if [ "$code" -eq 0 ] && has_call "[$tmp/piped1] plugin install thatpet-wsl@claude-sync-that" && has_call "[$tmp/piped2] plugin install thatpet-wsl@claude-sync-that"; then
+  pass "works piped into bash for every config dir"
+else
+  fail "piped: code=$code $(cat "$tmp/out") calls: $(calls)"
+fi
+if [ ! -s "$tmp/stdin-log" ]; then pass "claude gets no stdin"; else fail "claude read stdin: $(head -c 200 "$tmp/stdin-log")"; fi
 bash -s -- --help < "$installer" > "$tmp/out" 2>&1
 if grep -q -- "--config-dir DIR" "$tmp/out"; then pass "--help works when piped"; else fail "piped help: $(cat "$tmp/out")"; fi
 
